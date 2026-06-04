@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ATL Airport Flight Schedule",
+  "description": "Input schedule format for the ATL airport SimPy simulation",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "flight_id",
+      "airline",
+      "flight_number",
+      "aircraft_type",
+      "tail_number",
+      "operation",
+      "scheduled_time",
+      "origin",
+      "destination",
+      "gate_assigned",
+      "concourse"
+    ],
+    "properties": {
+      "flight_id": {
+        "type": "string",
+        "description": "Unique identifier for this flight leg, e.g. 'DL123-20250601'"
+      },
+      "airline": {
+        "type": "string",
+        "description": "2-letter IATA airline code, e.g. 'DL', 'AA', 'WN'"
+      },
+      "flight_number": {
+        "type": "string",
+        "description": "Airline flight number, e.g. '123', '456'"
+      },
+      "aircraft_type": {
+        "type": "string",
+        "enum": ["narrow", "wide"],
+        "description": "Aircraft body type: narrow = single-aisle (737, A320, etc.), wide = twin-aisle (767, A330, 777, etc.)"
+      },
+      "aircraft_subtype": {
+        "type": "string",
+        "description": "ICAO aircraft type designator, e.g. 'B738', 'A320', 'B763'"
+      },
+      "tail_number": {
+        "type": "string",
+        "description": "FAA tail/registration number, e.g. 'N123DL'"
+      },
+      "operation": {
+        "type": "string",
+        "enum": ["ARR", "DEP"],
+        "description": "ARR = arrival at ATL, DEP = departure from ATL"
+      },
+      "scheduled_time": {
+        "type": "string",
+        "description": "Scheduled operation time in HH:MM (24-hour) local time"
+      },
+      "scheduled_datetime": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Full ISO 8601 datetime, e.g. '2025-06-01T08:30:00'"
+      },
+      "origin": {
+        "type": "string",
+        "description": "3-letter IATA origin airport code (for DEP, this is ATL; for ARR, this is the inbound origin)"
+      },
+      "destination": {
+        "type": "string",
+        "description": "3-letter IATA destination airport code (for ARR, this is ATL; for DEP, this is the outbound dest)"
+      },
+      "gate_assigned": {
+        "type": "string",
+        "description": "Assigned gate ID, e.g. 'A12', 'B7', 'E4'"
+      },
+      "concourse": {
+        "type": "string",
+        "enum": ["T", "A", "B", "C", "D", "E", "F"],
+        "description": "Concourse letter"
+      },
+      "aircraft_weight_class": {
+        "type": "string",
+        "enum": ["Small", "Large", "Heavy", "Super"],
+        "description": "FAA wake turbulence category"
+      }
+    }
+  },
+  "_csv_columns": [
+    "flight_id",
+    "airline",
+    "flight_number",
+    "aircraft_type",
+    "aircraft_subtype",
+    "tail_number",
+    "operation",
+    "scheduled_time",
+    "scheduled_datetime",
+    "origin",
+    "destination",
+    "gate_assigned",
+    "concourse",
+    "aircraft_weight_class"
+  ],
+  "_notes": [
+    "CSV files should include a header row with these exact column names.",
+    "scheduled_time is HH:MM in local Eastern Time (ET).",
+    "scheduled_datetime overrides scheduled_time when both are present.",
+    "Paired ARR/DEP legs for the same aircraft should share tail_number.",
+    "gate_assigned should match the concourse prefix (e.g. A-concourse gates start with 'A')."
+  ]
+}
