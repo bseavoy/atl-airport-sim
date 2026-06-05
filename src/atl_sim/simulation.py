@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import math
 import random
-from typing import List, Optional
+from collections import defaultdict
+from typing import Dict, List, Optional
 
 import numpy as np
 import simpy
@@ -40,6 +41,9 @@ class AirportSimulation:
         self.gate_pool = GatePool(self.env, self.config)
         self.metrics = SimMetrics()
         self._flights: List[Flight] = []
+        # Maps departure flight_id → SimPy Event that succeeds when its
+        # inbound rotation (same tail) finishes gate turnaround.
+        self._rotation_events: Dict[str, simpy.Event] = {}
 
     # ------------------------------------------------------------------ #
     # Public API
@@ -47,6 +51,7 @@ class AirportSimulation:
 
     def load_schedule(self, csv_path: str) -> None:
         self._flights = load_schedule(csv_path)
+        self._build_rotation_map()
 
     def run(self, until_min: float = 1440.0) -> SimMetrics:
         for flight in self._flights:
@@ -54,6 +59,48 @@ class AirportSimulation:
         self.env.process(self._gate_sampler(interval_min=15.0))
         self.env.run(until=until_min)
         return self.metrics
+
+    # ------------------------------------------------------------------ #
+    # Rotation map
+    # ------------------------------------------------------------------ #
+
+    def _build_rotation_map(self) -> None:
+        """
+        For each tail number, pair consecutive ARR→DEP flights (by scheduled
+        time) into rotation chains.  Each pair shares a single SimPy Event:
+        the arrival process succeeds it after gate turnaround; the departure
+        process yields on it before starting pushback.
+        """
+        by_tail: Dict[str, List[Flight]] = defaultdict(list)
+        for f in self._flights:
+            if f.tail_number and f.tail_number not in ("", "nan"):
+                by_tail[f.tail_number].append(f)
+
+        # Maps arrival flight_id → event to succeed after turnaround
+        self._arr_signals: Dict[str, simpy.Event] = {}
+        # Maps departure flight_id → event to wait on before pushback
+        self._rotation_events: Dict[str, simpy.Event] = {}
+
+        for tail, flights in by_tail.items():
+            flights_sorted = sorted(flights, key=lambda f: f.scheduled_min)
+            # Walk through and pair each ARR with the next DEP on the same tail
+            i = 0
+            while i < len(flights_sorted) - 1:
+                if flights_sorted[i].operation == "ARR":
+                    arr = flights_sorted[i]
+                    # Find the next DEP after this ARR
+                    for j in range(i + 1, len(flights_sorted)):
+                        if flights_sorted[j].operation == "DEP":
+                            dep = flights_sorted[j]
+                            ev = self.env.event()
+                            self._arr_signals[arr.flight_id] = ev
+                            self._rotation_events[dep.flight_id] = ev
+                            i = j  # advance past the paired DEP
+                            break
+                    else:
+                        i += 1
+                else:
+                    i += 1
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -69,16 +116,13 @@ class AirportSimulation:
             return max(1.0, _lognorm_sample(self.rng, mean, cfg.taxi_in_lognorm_sigma))
         return max(1.0, float(self.rng.normal(mean, conc.taxi_in_std_min if conc else 2.0)))
 
-    def _taxi_out(self, conc, scheduled_min: float) -> float:
+    def _taxi_out(self, conc) -> float:
         cfg = self.config
         mean = conc.taxi_out_mean_min if conc else 18.0
-        hour = int(scheduled_min) // 60 % 24
-        multiplier = cfg.taxi_out_hourly_multipliers.get(hour, 1.0)
-        effective_mean = mean * multiplier
         if cfg.use_lognormal:
-            return max(1.0, _lognorm_sample(self.rng, effective_mean, cfg.taxi_out_lognorm_sigma))
+            return max(1.0, _lognorm_sample(self.rng, mean, cfg.taxi_out_lognorm_sigma))
         std = conc.taxi_out_std_min if conc else 5.0
-        return max(1.0, float(self.rng.normal(effective_mean, std)))
+        return max(1.0, float(self.rng.normal(mean, std)))
 
     # ------------------------------------------------------------------ #
     # SimPy processes
@@ -96,7 +140,6 @@ class AirportSimulation:
 
         yield self.env.timeout(max(0.0, flight.scheduled_min - self.env.now))
 
-        # Queue for arrival runway — measure wait.
         rwy_request_t = self.env.now
         with self.runway_pool.arrival.request() as req:
             yield req
@@ -116,6 +159,10 @@ class AirportSimulation:
         with gate_pool.request() as req:
             yield req
             yield self.env.timeout(turnaround)
+            # Aircraft ready — signal any waiting rotation departure
+            signal = self._arr_signals.get(flight.flight_id)
+            if signal is not None and not signal.triggered:
+                signal.succeed(self.env.now)
         gate_out = self.env.now
 
         self.metrics.record_flight(FlightRecord(
@@ -135,11 +182,18 @@ class AirportSimulation:
         cfg = self.config
         conc = cfg.concourses.get(flight.concourse)
 
+        # Wait for inbound rotation to complete turnaround before committing to
+        # gate holdout / pushback prep.  If the aircraft arrives late, this
+        # naturally delays the departure without any lookup table.
+        rotation_ev = self._rotation_events.get(flight.flight_id)
+        if rotation_ev is not None:
+            yield rotation_ev
+
         gate_holdout = max(
             0.0,
             self.rng_py.gauss(cfg.gate_holdout_mean_min, cfg.gate_holdout_std_min),
         )
-        pushback_ready = flight.scheduled_min - gate_holdout
+        pushback_ready = max(self.env.now, flight.scheduled_min - gate_holdout)
         yield self.env.timeout(max(0.0, pushback_ready - self.env.now))
 
         pushback_delay = max(
@@ -148,24 +202,19 @@ class AirportSimulation:
         )
         yield self.env.timeout(pushback_delay)
 
-        # Gate hold: acquire a taxi permit before pushing back onto the taxiway.
-        # If all permits are taken the flight holds at the gate until one frees.
         gate_hold_start = self.env.now
         with self.runway_pool.dep_taxi_permits.request() as permit:
             yield permit
             gate_hold_time = self.env.now - gate_hold_start
 
-            taxi_out = self._taxi_out(conc, flight.scheduled_min)
+            taxi_out = self._taxi_out(conc)
             yield self.env.timeout(taxi_out)
 
-            # Pick least-loaded departure runway and queue for it.
             rwy = self.runway_pool.least_loaded_runway()
             rwy_request_t = self.env.now
             yield self.env.process(rwy.process(is_heavy=flight.is_heavy))
             runway_wait = self.env.now - rwy_request_t
             actual_wheels_off = self.env.now
-            # Taxi permit released here (context exit) — frees a slot for the
-            # next gate-held aircraft.
 
         self.metrics.record_flight(FlightRecord(
             flight_id=flight.flight_id,
