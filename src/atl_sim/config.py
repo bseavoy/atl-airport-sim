@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 
 @dataclass
@@ -61,6 +61,11 @@ class AirportConfig:
     gate_holdout_std_min: float
     turnaround_narrow_min: int
     turnaround_wide_min: int
+    use_lognormal: bool = True
+    taxi_in_lognorm_sigma: float = 0.434
+    taxi_out_lognorm_sigma: float = 0.356
+    # Keys are hour-of-day ints (0-23); missing hours default to 1.0
+    taxi_out_hourly_multipliers: Dict[int, float] = field(default_factory=dict)
 
 
 def load_config(config_path: Optional[str] = None) -> AirportConfig:
@@ -116,6 +121,10 @@ def load_config(config_path: Optional[str] = None) -> AirportConfig:
     cap = raw.get("capacity", {})
     gdp_rates = cap.get("gdp_arrival_rates", {"light": 60, "moderate": 45, "severe": 25})
 
+    taxi_dist = raw.get("taxi_distribution", {})
+    hourly_raw = taxi_dist.get("taxi_out_hourly_multipliers", {})
+    hourly_multipliers = {int(k): float(v) for k, v in hourly_raw.items()}
+
     return AirportConfig(
         airport=raw["airport"],
         name=raw["name"],
@@ -133,4 +142,8 @@ def load_config(config_path: Optional[str] = None) -> AirportConfig:
         gate_holdout_std_min=raw.get("gate_holdout_std_min", 6.0),
         turnaround_narrow_min=raw.get("turnaround_narrow_min", 45),
         turnaround_wide_min=raw.get("turnaround_wide_min", 60),
+        use_lognormal=bool(taxi_dist.get("use_lognormal", True)),
+        taxi_in_lognorm_sigma=float(taxi_dist.get("taxi_in_lognorm_sigma", 0.434)),
+        taxi_out_lognorm_sigma=float(taxi_dist.get("taxi_out_lognorm_sigma", 0.356)),
+        taxi_out_hourly_multipliers=hourly_multipliers,
     )

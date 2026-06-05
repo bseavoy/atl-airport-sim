@@ -16,10 +16,10 @@
       "gate_prefix": "T",
       "gate_range": [1, 12],
       "description": "Main Terminal",
-      "taxi_in_mean_min": 9.0,
-      "taxi_in_std_min": 3.0,
+      "taxi_in_mean_min": 10.5,
+      "taxi_in_std_min": 4.5,
       "taxi_out_mean_min": 20.0,
-      "taxi_out_std_min": 6.5,
+      "taxi_out_std_min": 8.5,
       "compatible_aircraft": ["narrow", "wide"]
     },
     "A": {
@@ -27,10 +27,10 @@
       "gate_prefix": "A",
       "gate_range": [1, 29],
       "description": "Concourse A",
-      "taxi_in_mean_min": 7.5,
-      "taxi_in_std_min": 2.8,
+      "taxi_in_mean_min": 9.0,
+      "taxi_in_std_min": 4.2,
       "taxi_out_mean_min": 17.0,
-      "taxi_out_std_min": 6.0,
+      "taxi_out_std_min": 8.0,
       "compatible_aircraft": ["narrow", "wide"]
     },
     "B": {
@@ -38,10 +38,10 @@
       "gate_prefix": "B",
       "gate_range": [1, 29],
       "description": "Concourse B",
-      "taxi_in_mean_min": 8.0,
-      "taxi_in_std_min": 3.0,
+      "taxi_in_mean_min": 9.5,
+      "taxi_in_std_min": 4.5,
       "taxi_out_mean_min": 17.5,
-      "taxi_out_std_min": 6.5,
+      "taxi_out_std_min": 8.5,
       "compatible_aircraft": ["narrow", "wide"]
     },
     "C": {
@@ -49,10 +49,10 @@
       "gate_prefix": "C",
       "gate_range": [1, 26],
       "description": "Concourse C",
-      "taxi_in_mean_min": 8.5,
-      "taxi_in_std_min": 3.2,
+      "taxi_in_mean_min": 10.0,
+      "taxi_in_std_min": 4.5,
       "taxi_out_mean_min": 18.5,
-      "taxi_out_std_min": 7.0,
+      "taxi_out_std_min": 9.0,
       "compatible_aircraft": ["narrow", "wide"]
     },
     "D": {
@@ -60,10 +60,10 @@
       "gate_prefix": "D",
       "gate_range": [1, 26],
       "description": "Concourse D",
-      "taxi_in_mean_min": 9.0,
-      "taxi_in_std_min": 3.3,
+      "taxi_in_mean_min": 10.5,
+      "taxi_in_std_min": 4.5,
       "taxi_out_mean_min": 19.0,
-      "taxi_out_std_min": 7.2,
+      "taxi_out_std_min": 9.0,
       "compatible_aircraft": ["narrow", "wide"]
     },
     "E": {
@@ -71,10 +71,10 @@
       "gate_prefix": "E",
       "gate_range": [1, 20],
       "description": "Concourse E",
-      "taxi_in_mean_min": 9.5,
-      "taxi_in_std_min": 3.5,
+      "taxi_in_mean_min": 11.0,
+      "taxi_in_std_min": 5.0,
       "taxi_out_mean_min": 20.0,
-      "taxi_out_std_min": 7.5,
+      "taxi_out_std_min": 9.5,
       "compatible_aircraft": ["narrow", "wide"]
     },
     "F": {
@@ -82,10 +82,10 @@
       "gate_prefix": "F",
       "gate_range": [1, 12],
       "description": "Concourse F - International",
-      "taxi_in_mean_min": 10.5,
-      "taxi_in_std_min": 3.8,
+      "taxi_in_mean_min": 12.0,
+      "taxi_in_std_min": 5.5,
       "taxi_out_mean_min": 22.0,
-      "taxi_out_std_min": 8.0,
+      "taxi_out_std_min": 10.0,
       "compatible_aircraft": ["narrow", "wide", "heavy"]
     }
   },
@@ -103,11 +103,35 @@
     "nominal_departure_rate_per_hour": 80,
     "gdp_arrival_rates": {"light": 60, "moderate": 45, "severe": 25}
   },
+  "taxi_distribution": {
+    "use_lognormal": true,
+    "taxi_in_lognorm_sigma": 0.434,
+    "taxi_out_lognorm_sigma": 0.356,
+    "taxi_out_hourly_multipliers": {
+      "6":  0.85,
+      "7":  0.95,
+      "8":  0.94,
+      "9":  0.93,
+      "10": 0.99,
+      "11": 0.86,
+      "12": 0.82,
+      "13": 0.83,
+      "14": 0.93,
+      "15": 1.05,
+      "16": 0.92,
+      "17": 0.92,
+      "18": 0.96,
+      "19": 1.03,
+      "20": 1.13,
+      "21": 1.50,
+      "22": 1.17
+    }
+  },
   "taxi_benchmarks": {
-    "taxi_in_mean_min": 8.5,
-    "taxi_in_std_min": 3.2,
-    "taxi_out_mean_min": 18.5,
-    "taxi_out_std_min": 7.1
+    "taxi_in_mean_min": 8.9,
+    "taxi_in_std_min": 5.5,
+    "taxi_out_mean_min": 17.0,
+    "taxi_out_std_min": 8.7
   },
   "pushback_clearance_mean_min": 5.0,
   "pushback_clearance_std_min": 2.0,
