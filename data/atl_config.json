@@ -1,26 +1,118 @@
 {
   "airport": "ATL",
   "name": "Hartsfield-Jackson Atlanta International Airport",
+  "icao": "KATL",
+  "iata": "ATL",
   "runways": {
-    "RWY_8L": {"length_ft": 9000},
-    "RWY_8R": {"length_ft": 9000},
-    "RWY_9L": {"length_ft": 9000},
-    "RWY_9R": {"length_ft": 11890},
-    "RWY_10": {"length_ft": 9000}
+    "RWY_8L": {"length_ft": 9000, "width_ft": 150, "primary_use": "arrival", "wake_turbulence_group": "mixed"},
+    "RWY_8R": {"length_ft": 9000, "width_ft": 150, "primary_use": "departure", "wake_turbulence_group": "mixed"},
+    "RWY_9L": {"length_ft": 9000, "width_ft": 150, "primary_use": "arrival", "wake_turbulence_group": "mixed"},
+    "RWY_9R": {"length_ft": 11890, "width_ft": 150, "primary_use": "departure", "wake_turbulence_group": "mixed"},
+    "RWY_10": {"length_ft": 9000, "width_ft": 150, "primary_use": "mixed", "wake_turbulence_group": "mixed"}
   },
-  "terminals": {
-    "T": {"gates": 12, "prefix": "T"},
-    "A": {"gates": 29, "prefix": "A"},
-    "B": {"gates": 29, "prefix": "B"},
-    "C": {"gates": 26, "prefix": "C"},
-    "D": {"gates": 26, "prefix": "D"},
-    "E": {"gates": 20, "prefix": "E"},
-    "F": {"gates": 12, "prefix": "F"}
+  "concourses": {
+    "T": {
+      "gate_count": 12,
+      "gate_prefix": "T",
+      "gate_range": [1, 12],
+      "description": "Main Terminal",
+      "taxi_in_mean_min": 9.0,
+      "taxi_in_std_min": 3.0,
+      "taxi_out_mean_min": 20.0,
+      "taxi_out_std_min": 6.5,
+      "compatible_aircraft": ["narrow", "wide"]
+    },
+    "A": {
+      "gate_count": 29,
+      "gate_prefix": "A",
+      "gate_range": [1, 29],
+      "description": "Concourse A",
+      "taxi_in_mean_min": 7.5,
+      "taxi_in_std_min": 2.8,
+      "taxi_out_mean_min": 17.0,
+      "taxi_out_std_min": 6.0,
+      "compatible_aircraft": ["narrow", "wide"]
+    },
+    "B": {
+      "gate_count": 29,
+      "gate_prefix": "B",
+      "gate_range": [1, 29],
+      "description": "Concourse B",
+      "taxi_in_mean_min": 8.0,
+      "taxi_in_std_min": 3.0,
+      "taxi_out_mean_min": 17.5,
+      "taxi_out_std_min": 6.5,
+      "compatible_aircraft": ["narrow", "wide"]
+    },
+    "C": {
+      "gate_count": 26,
+      "gate_prefix": "C",
+      "gate_range": [1, 26],
+      "description": "Concourse C",
+      "taxi_in_mean_min": 8.5,
+      "taxi_in_std_min": 3.2,
+      "taxi_out_mean_min": 18.5,
+      "taxi_out_std_min": 7.0,
+      "compatible_aircraft": ["narrow", "wide"]
+    },
+    "D": {
+      "gate_count": 26,
+      "gate_prefix": "D",
+      "gate_range": [1, 26],
+      "description": "Concourse D",
+      "taxi_in_mean_min": 9.0,
+      "taxi_in_std_min": 3.3,
+      "taxi_out_mean_min": 19.0,
+      "taxi_out_std_min": 7.2,
+      "compatible_aircraft": ["narrow", "wide"]
+    },
+    "E": {
+      "gate_count": 20,
+      "gate_prefix": "E",
+      "gate_range": [1, 20],
+      "description": "Concourse E",
+      "taxi_in_mean_min": 9.5,
+      "taxi_in_std_min": 3.5,
+      "taxi_out_mean_min": 20.0,
+      "taxi_out_std_min": 7.5,
+      "compatible_aircraft": ["narrow", "wide"]
+    },
+    "F": {
+      "gate_count": 12,
+      "gate_prefix": "F",
+      "gate_range": [1, 12],
+      "description": "Concourse F - International",
+      "taxi_in_mean_min": 10.5,
+      "taxi_in_std_min": 3.8,
+      "taxi_out_mean_min": 22.0,
+      "taxi_out_std_min": 8.0,
+      "compatible_aircraft": ["narrow", "wide", "heavy"]
+    }
+  },
+  "separation_minima": {
+    "heavy_behind_heavy_sec": 90,
+    "heavy_behind_large_sec": 60,
+    "large_behind_heavy_sec": 120,
+    "large_behind_large_sec": 60,
+    "small_behind_heavy_sec": 180,
+    "small_behind_large_sec": 90,
+    "default_separation_sec": 60
+  },
+  "capacity": {
+    "nominal_arrival_rate_per_hour": 80,
+    "nominal_departure_rate_per_hour": 80,
+    "gdp_arrival_rates": {"light": 60, "moderate": 45, "severe": 25}
   },
   "taxi_benchmarks": {
     "taxi_in_mean_min": 8.5,
     "taxi_in_std_min": 3.2,
     "taxi_out_mean_min": 18.5,
     "taxi_out_std_min": 7.1
-  }
+  },
+  "pushback_clearance_mean_min": 5.0,
+  "pushback_clearance_std_min": 2.0,
+  "gate_holdout_mean_min": 8.0,
+  "gate_holdout_std_min": 6.0,
+  "turnaround_narrow_min": 45,
+  "turnaround_wide_min": 60
 }
