@@ -66,6 +66,9 @@ class AirportConfig:
     taxi_out_lognorm_sigma: float = 0.356
     # Keys are hour-of-day ints (0-23); missing hours default to 1.0
     taxi_out_hourly_multipliers: Dict[int, float] = field(default_factory=dict)
+    # Max aircraft allowed in departure taxi system (taxi + runway queue).
+    # Arrivals over this limit hold at the gate until a slot opens.
+    departure_max_taxi_queue: int = 25
 
 
 def load_config(config_path: Optional[str] = None) -> AirportConfig:
@@ -146,4 +149,5 @@ def load_config(config_path: Optional[str] = None) -> AirportConfig:
         taxi_in_lognorm_sigma=float(taxi_dist.get("taxi_in_lognorm_sigma", 0.434)),
         taxi_out_lognorm_sigma=float(taxi_dist.get("taxi_out_lognorm_sigma", 0.356)),
         taxi_out_hourly_multipliers=hourly_multipliers,
+        departure_max_taxi_queue=int(raw.get("departure_max_taxi_queue", 25)),
     )

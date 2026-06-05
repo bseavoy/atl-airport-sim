@@ -148,16 +148,24 @@ class AirportSimulation:
         )
         yield self.env.timeout(pushback_delay)
 
-        taxi_out = self._taxi_out(conc, flight.scheduled_min)
-        yield self.env.timeout(taxi_out)
+        # Gate hold: acquire a taxi permit before pushing back onto the taxiway.
+        # If all permits are taken the flight holds at the gate until one frees.
+        gate_hold_start = self.env.now
+        with self.runway_pool.dep_taxi_permits.request() as permit:
+            yield permit
+            gate_hold_time = self.env.now - gate_hold_start
 
-        # Queue for departure runway — measure wait.
-        rwy_request_t = self.env.now
-        yield self.env.process(
-            self.runway_pool.release_departure(is_heavy=flight.is_heavy)
-        )
-        runway_wait = self.env.now - rwy_request_t
-        actual_wheels_off = self.env.now
+            taxi_out = self._taxi_out(conc, flight.scheduled_min)
+            yield self.env.timeout(taxi_out)
+
+            # Pick least-loaded departure runway and queue for it.
+            rwy = self.runway_pool.least_loaded_runway()
+            rwy_request_t = self.env.now
+            yield self.env.process(rwy.process(is_heavy=flight.is_heavy))
+            runway_wait = self.env.now - rwy_request_t
+            actual_wheels_off = self.env.now
+            # Taxi permit released here (context exit) — frees a slot for the
+            # next gate-held aircraft.
 
         self.metrics.record_flight(FlightRecord(
             flight_id=flight.flight_id,
@@ -165,7 +173,7 @@ class AirportSimulation:
             scheduled_min=flight.scheduled_min,
             actual_min=actual_wheels_off,
             taxi_min=taxi_out,
-            gate_delay_min=max(0.0, actual_wheels_off - flight.scheduled_min),
+            gate_delay_min=gate_hold_time,
             runway_wait_min=runway_wait,
             concourse=flight.concourse,
             weight_class=flight.weight_class,

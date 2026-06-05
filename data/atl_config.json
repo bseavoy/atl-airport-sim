@@ -133,6 +133,7 @@
     "taxi_out_mean_min": 17.0,
     "taxi_out_std_min": 8.7
   },
+  "departure_max_taxi_queue": 25,
   "pushback_clearance_mean_min": 5.0,
   "pushback_clearance_std_min": 2.0,
   "gate_holdout_mean_min": 8.0,

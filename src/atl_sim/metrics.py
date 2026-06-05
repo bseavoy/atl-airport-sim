@@ -19,6 +19,7 @@ class FlightRecord:
     taxi_min: float | None = None
     gate_delay_min: float = 0.0
     runway_wait_min: float = 0.0   # time queued waiting for runway slot
+    gate_hold_min: float = 0.0     # DEP: time held at gate before taxiway entry
     concourse: str = ""
     weight_class: str = ""
 

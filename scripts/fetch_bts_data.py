@@ -1,5 +1,6 @@
 """
 Download BTS On-Time Performance data for ATL, extract summer 2024 weekdays.
+Concourse assignments are inferred from airline + destination (no gate data in BTS).
 
 Usage:
     python scripts/fetch_bts_data.py [--months 6 7 8] [--year 2024] [--days-per-month 2]
@@ -17,12 +18,17 @@ import json
 import logging
 import os
 import random
+import sys
 import zipfile
 from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
 import requests
+
+# Import concourse assignment from the enrichment script (same package).
+sys.path.insert(0, str(Path(__file__).parent))
+from enrich_concourses import assign_concourse as _assign_concourse
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -113,12 +119,14 @@ def pick_days(df: pd.DataFrame, n: int, rng: random.Random) -> list[date]:
     return candidates
 
 
-def build_day_file(df: pd.DataFrame, day: date) -> pd.DataFrame:
+def build_day_file(df: pd.DataFrame, day: date, rng: random.Random | None = None) -> pd.DataFrame:
     """
     Build a combined arrivals+departures schedule for one day.
     Returns one row per flight with operation=ARR or DEP,
     plus actual taxi times for ground-truth validation.
     """
+    if rng is None:
+        rng = random.Random(42)
     day_df = df[df["FlightDate"].dt.date == day].copy()
     rows = []
 
@@ -133,6 +141,7 @@ def build_day_file(df: pd.DataFrame, day: date) -> pd.DataFrame:
         tail = str(r.get("Tail_Number", "")).strip()
         origin = str(r.get("Origin", "")).strip()
         dest = str(r.get("Dest", "")).strip()
+        concourse = _assign_concourse(airline, origin, dest, rng)
 
         def _hhmm_to_min(val):
             s = str(val).strip().replace(".0", "")
@@ -160,6 +169,7 @@ def build_day_file(df: pd.DataFrame, day: date) -> pd.DataFrame:
                 "operation": "DEP",
                 "origin": origin,
                 "destination": dest,
+                "concourse": concourse,
                 "scheduled_time": f"{int(sched)//60:02d}:{int(sched)%60:02d}",
                 "scheduled_min": sched,
                 "actual_time": f"{int(actual)//60:02d}:{int(actual)%60:02d}" if actual is not None else "",
@@ -186,6 +196,7 @@ def build_day_file(df: pd.DataFrame, day: date) -> pd.DataFrame:
                 "operation": "ARR",
                 "origin": origin,
                 "destination": dest,
+                "concourse": concourse,
                 "scheduled_time": f"{int(sched)//60:02d}:{int(sched)%60:02d}",
                 "scheduled_min": sched,
                 "actual_time": f"{int(actual)//60:02d}:{int(actual)%60:02d}" if actual is not None else "",
