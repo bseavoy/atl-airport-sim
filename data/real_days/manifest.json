@@ -1,0 +1,68 @@
+[
+  {
+    "date": "2024-06-03",
+    "file": "2024-06-03_atl.csv",
+    "total_flights": 2040,
+    "arrivals": 1022,
+    "departures": 1018,
+    "actual_taxi_in_mean": 9.02,
+    "actual_taxi_in_std": 6.31,
+    "actual_taxi_out_mean": 16.38,
+    "actual_taxi_out_std": 4.97
+  },
+  {
+    "date": "2024-06-17",
+    "file": "2024-06-17_atl.csv",
+    "total_flights": 2071,
+    "arrivals": 1035,
+    "departures": 1036,
+    "actual_taxi_in_mean": 9.61,
+    "actual_taxi_in_std": 4.86,
+    "actual_taxi_out_mean": 14.38,
+    "actual_taxi_out_std": 4.52
+  },
+  {
+    "date": "2024-07-01",
+    "file": "2024-07-01_atl.csv",
+    "total_flights": 1780,
+    "arrivals": 890,
+    "departures": 890,
+    "actual_taxi_in_mean": 9.8,
+    "actual_taxi_in_std": 5.44,
+    "actual_taxi_out_mean": 16.1,
+    "actual_taxi_out_std": 7.19
+  },
+  {
+    "date": "2024-07-16",
+    "file": "2024-07-16_atl.csv",
+    "total_flights": 1935,
+    "arrivals": 969,
+    "departures": 966,
+    "actual_taxi_in_mean": 8.05,
+    "actual_taxi_in_std": 4.42,
+    "actual_taxi_out_mean": 16.54,
+    "actual_taxi_out_std": 6.39
+  },
+  {
+    "date": "2024-08-01",
+    "file": "2024-08-01_atl.csv",
+    "total_flights": 2065,
+    "arrivals": 1033,
+    "departures": 1032,
+    "actual_taxi_in_mean": 8.58,
+    "actual_taxi_in_std": 5.98,
+    "actual_taxi_out_mean": 17.73,
+    "actual_taxi_out_std": 6.14
+  },
+  {
+    "date": "2024-08-16",
+    "file": "2024-08-16_atl.csv",
+    "total_flights": 2005,
+    "arrivals": 1002,
+    "departures": 1003,
+    "actual_taxi_in_mean": 8.36,
+    "actual_taxi_in_std": 5.75,
+    "actual_taxi_out_mean": 21.02,
+    "actual_taxi_out_std": 16.03
+  }
+]
