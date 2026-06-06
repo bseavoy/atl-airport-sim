@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -113,11 +113,15 @@ class AirportConfig:
     taxi_in_lognorm_sigma: float = 0.434
     taxi_out_lognorm_sigma: float = 0.356
     departure_max_taxi_queue: int = 25
-    # Schedule padding: airlines publish gate arrival times later than expected
-    # actual arrival, creating a buffer.  Sampled per-flight from a half-normal
-    # (clamped at 0) and subtracted from the wheels-on trigger.
     arr_schedule_padding_mean_min: float = 0.0
     arr_schedule_padding_std_min: float = 0.0
+    # Per-airline schedule padding overrides: {iata_code: (mean_min, std_min)}
+    airline_padding_overrides: Dict[str, Tuple[float, float]] = field(default_factory=dict)
+    # Congestion-adjusted taxi-out: mean += alpha * queue_depth_at_pushback
+    taxi_out_congestion_alpha: float = 0.3
+    # Smart gate hold: hold at gate while dep queue >= threshold (Simaiakis 2012)
+    congestion_departure_queue_threshold: int = 15
+    gate_hold_poll_min: float = 1.0
 
 
 def load_config(config_path: Optional[str] = None) -> AirportConfig:
@@ -198,4 +202,11 @@ def load_config(config_path: Optional[str] = None) -> AirportConfig:
         departure_max_taxi_queue=int(raw.get("departure_max_taxi_queue", 25)),
         arr_schedule_padding_mean_min=float(raw.get("arr_schedule_padding_mean_min", 0.0)),
         arr_schedule_padding_std_min=float(raw.get("arr_schedule_padding_std_min", 0.0)),
+        airline_padding_overrides={
+            k: (float(v[0]), float(v[1]))
+            for k, v in raw.get("airline_padding_overrides", {}).items()
+        },
+        taxi_out_congestion_alpha=float(raw.get("taxi_out_congestion_alpha", 0.3)),
+        congestion_departure_queue_threshold=int(raw.get("congestion_departure_queue_threshold", 15)),
+        gate_hold_poll_min=float(raw.get("gate_hold_poll_min", 1.0)),
     )

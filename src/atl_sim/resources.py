@@ -11,6 +11,31 @@ from .config import AirportConfig
 
 WEIGHT_CLASS_BY_TYPE = {"narrow": "Large", "wide": "Heavy", "heavy": "Heavy"}
 
+# FAA RECAT-1 category mapping from BTS weight classes
+_RECAT_CATEGORY: Dict[str, str] = {
+    "heavy":  "B",   # Upper Heavy  (B747, B777-300, A380)
+    "wide":   "C",   # Lower Heavy  (B767, B787, A330, A350)
+    "narrow": "D",   # Upper Medium (B737, A320, B757-200)
+}
+
+# RECAT-1 departure time-based separation matrix, seconds
+# Key: (leader_cat, follower_cat)
+_RECAT_SEP_SEC: Dict[tuple, int] = {
+    ("A","A"):180, ("A","B"):180, ("A","C"):180, ("A","D"):120, ("A","E"):120, ("A","F"):120,
+    ("B","A"):120, ("B","B"):120, ("B","C"):120, ("B","D"): 90, ("B","E"): 90, ("B","F"): 90,
+    ("C","A"): 90, ("C","B"): 90, ("C","C"): 90, ("C","D"): 90, ("C","E"): 90, ("C","F"): 90,
+    ("D","A"): 90, ("D","B"): 90, ("D","C"): 90, ("D","D"): 90, ("D","E"): 90, ("D","F"): 90,
+    ("E","A"): 90, ("E","B"): 90, ("E","C"): 90, ("E","D"): 90, ("E","E"): 90, ("E","F"): 90,
+    ("F","A"): 90, ("F","B"): 90, ("F","C"): 90, ("F","D"): 90, ("F","E"): 90, ("F","F"): 90,
+}
+
+# Runway occupancy / takeoff-roll duration by aircraft type (minutes)
+_TAKEOFF_ROLL_MIN: Dict[str, float] = {
+    "heavy":  1.00,   # ~60 sec
+    "wide":   0.83,   # ~50 sec
+    "narrow": 0.67,   # ~40 sec
+}
+
 
 @dataclass
 class Flight:
@@ -94,39 +119,54 @@ class DepartureMeter:
 
 
 class DepartureRunway:
-    """One physical departure runway with its own queue and separation state."""
+    """One physical departure runway with RECAT-1 pair-wise separation and type-specific ROT."""
 
     def __init__(
         self,
         env: simpy.Environment,
         runway_id: str,
-        default_sep_sec: int = 60,
-        heavy_sep_sec: int = 90,
-        takeoff_roll_min: float = 0.75,
         min_inter_dep_min: float = 0.0,
     ):
         self.env = env
         self.runway_id = runway_id
         self.resource = simpy.Resource(env, capacity=1)
-        self.default_sep_sec = default_sep_sec
-        self.heavy_sep_sec = heavy_sep_sec
-        self.takeoff_roll_min = takeoff_roll_min
         self.min_inter_dep_min = min_inter_dep_min
-        self._last_was_heavy = False
+        self._last_recat_cat: str = "D"  # assume medium until first departure
 
     @property
     def queue_depth(self) -> int:
         return len(self.resource.queue) + self.resource.count
 
-    def process(self, is_heavy: bool):
-        sep_min = (
-            self.heavy_sep_sec if self._last_was_heavy else self.default_sep_sec
-        ) / 60.0
-        sep_min = max(sep_min, self.min_inter_dep_min)
+    def process(self, aircraft_type: str):
+        follower_cat = _RECAT_CATEGORY.get(aircraft_type, "D")
+        sep_sec = _RECAT_SEP_SEC.get((self._last_recat_cat, follower_cat), 90)
+        sep_min = max(sep_sec / 60.0, self.min_inter_dep_min)
+        roll_min = _TAKEOFF_ROLL_MIN.get(aircraft_type, 0.75)
         with self.resource.request() as req:
             yield req
-            yield self.env.timeout(sep_min + self.takeoff_roll_min)
-            self._last_was_heavy = is_heavy
+            yield self.env.timeout(sep_min + roll_min)
+            self._last_recat_cat = follower_cat
+
+
+class SmartGateHold:
+    """
+    Dynamic gate-hold metering based on Simaiakis & Balakrishnan (MIT 2012).
+
+    Aircraft poll at the gate while the total departure taxi queue exceeds the
+    configured threshold.  Unlike the fixed-capacity dep_taxi_permits pool,
+    this responds to actual runway queue depth, preventing taxiway overload
+    while burning no fuel and generating no crossing conflicts.
+    """
+
+    def __init__(self, env: simpy.Environment, threshold: int, poll_min: float = 1.0):
+        self.env = env
+        self.threshold = threshold
+        self.poll_min = poll_min
+
+    def wait_for_clearance(self, runway_pool: "RunwayPool"):
+        """SimPy process: hold at gate while total dep queue >= threshold."""
+        while runway_pool.total_dep_queue_depth() >= self.threshold:
+            yield self.env.timeout(self.poll_min)
 
 
 class RunwayPool:
@@ -158,23 +198,17 @@ class RunwayPool:
             else 0.0
         )
 
-        sep = config.separation
         self.dep_runways: List[DepartureRunway] = [
-            DepartureRunway(
-                env,
-                runway_id=name,
-                default_sep_sec=sep.default_separation_sec,
-                heavy_sep_sec=sep.heavy_behind_heavy_sec,
-                min_inter_dep_min=min_inter_dep_min,
-            )
+            DepartureRunway(env, runway_id=name, min_inter_dep_min=min_inter_dep_min)
             for name in dep
         ]
 
-        # Gate-hold permit pool: limits total aircraft in the departure taxi
-        # system (taxiing + waiting for runway) across the whole airport.
-        # Flights hold at the gate until a permit is free.
         max_q = getattr(config, "departure_max_taxi_queue", 25)
         self.dep_taxi_permits = simpy.Resource(env, capacity=max(1, max_q))
+
+        threshold = getattr(config, "congestion_departure_queue_threshold", 15)
+        poll_min = getattr(config, "gate_hold_poll_min", 1.0)
+        self.smart_gate_hold = SmartGateHold(env, threshold, poll_min)
 
     # ------------------------------------------------------------------ #
     # Arrival interface (unchanged)

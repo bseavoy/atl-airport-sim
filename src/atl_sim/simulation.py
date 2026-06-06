@@ -138,9 +138,10 @@ class AirportSimulation:
             return max(1.0, _lognorm_sample(self.rng, mean, cfg.taxi_in_lognorm_sigma))
         return max(1.0, float(self.rng.normal(mean, conc.taxi_in_std_min if conc else 2.0)))
 
-    def _taxi_out(self, conc) -> float:
+    def _taxi_out(self, conc, queue_depth: int = 0) -> float:
         cfg = self.config
-        mean = conc.taxi_out_mean_min if conc else 18.0
+        base_mean = conc.taxi_out_mean_min if conc else 18.0
+        mean = base_mean + cfg.taxi_out_congestion_alpha * queue_depth
         if cfg.use_lognormal:
             return max(1.0, _lognorm_sample(self.rng, mean, cfg.taxi_out_lognorm_sigma))
         std = conc.taxi_out_std_min if conc else 5.0
@@ -166,10 +167,10 @@ class AirportSimulation:
         # Together they model that scheduled gate arrival = wheels_on + taxi + buffer,
         # so wheels_on = scheduled_gate - taxi_offset - padding_sample.
         taxi_in_offset = self._taxi_in(conc)
-        padding = max(0.0, self.rng_py.gauss(
-            cfg.arr_schedule_padding_mean_min,
-            cfg.arr_schedule_padding_std_min,
-        )) if cfg.arr_schedule_padding_mean_min > 0 else 0.0
+        airline_pad = cfg.airline_padding_overrides.get(flight.airline)
+        pad_mean = airline_pad[0] if airline_pad is not None else cfg.arr_schedule_padding_mean_min
+        pad_std  = airline_pad[1] if airline_pad is not None else cfg.arr_schedule_padding_std_min
+        padding = max(0.0, self.rng_py.gauss(pad_mean, pad_std)) if pad_mean > 0 else 0.0
         wheels_on_trigger = max(0.0, flight.scheduled_min - taxi_in_offset - padding)
         yield self.env.timeout(max(0.0, wheels_on_trigger - self.env.now))
 
@@ -246,13 +247,18 @@ class AirportSimulation:
         )
         yield self.env.timeout(pushback_delay)
 
+        # Smart gate hold: hold at gate while runway queue exceeds threshold
         gate_hold_start = self.env.now
+        yield self.env.process(
+            self.runway_pool.smart_gate_hold.wait_for_clearance(self.runway_pool)
+        )
         with self.runway_pool.dep_taxi_permits.request() as permit:
             yield permit
             gate_hold_time = self.env.now - gate_hold_start
             pushback_min = self.env.now  # actual gate pushback (permit acquired)
 
-            taxi_out = self._taxi_out(conc)
+            queue_depth_at_pushback = self.runway_pool.total_dep_queue_depth()
+            taxi_out = self._taxi_out(conc, queue_depth=queue_depth_at_pushback)
             yield self.env.timeout(taxi_out)
 
             # GDP departure clearance hold: aircraft reaches runway threshold
@@ -272,7 +278,7 @@ class AirportSimulation:
             yield self.env.process(self.runway_pool.departure_meter.request_slot())
             rwy = self.runway_pool.least_loaded_runway()
             rwy_request_t = self.env.now
-            yield self.env.process(rwy.process(is_heavy=flight.is_heavy))
+            yield self.env.process(rwy.process(aircraft_type=flight.aircraft_type))
             runway_wait = self.env.now - rwy_request_t
             actual_wheels_off = self.env.now
 
