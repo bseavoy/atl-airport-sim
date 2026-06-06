@@ -58,6 +58,14 @@ def run_day(csv_path: Path, seed: int = 42, gdp_path: Optional[Path] = None) -> 
     sim_arr = [r for r in metrics.records if r.operation == "ARR"]
     sim_dep = [r for r in metrics.records if r.operation == "DEP"]
 
+    # A0 / D0 rates (on-time gate arrival / gate departure)
+    arr_ot = real[(real["operation"] == "ARR") & real["actual_min"].notna() & real["scheduled_min"].notna()]
+    dep_ot = real[(real["operation"] == "DEP") & real["actual_min"].notna() & real["scheduled_min"].notna()]
+    real_a0 = float((arr_ot["actual_min"] <= arr_ot["scheduled_min"]).mean()) if len(arr_ot) else 0.0
+    real_d0 = float((dep_ot["actual_min"] <= dep_ot["scheduled_min"]).mean()) if len(dep_ot) else 0.0
+    sim_a0 = sum(1 for r in sim_arr if r.gate_in_min is not None and r.gate_in_min <= r.scheduled_min) / len(sim_arr) if sim_arr else 0.0
+    sim_d0 = sum(1 for r in sim_dep if r.pushback_min is not None and r.pushback_min <= r.scheduled_min) / len(sim_dep) if sim_dep else 0.0
+
     # Per-hour actuals
     actual_by_hour: dict = {}
     for h in range(24):
@@ -85,6 +93,8 @@ def run_day(csv_path: Path, seed: int = 42, gdp_path: Optional[Path] = None) -> 
             "arr": _stats([r.runway_wait_min for r in sim_arr]),
             "dep": _stats([r.runway_wait_min for r in sim_dep]),
         },
+        "a0": {"actual": round(real_a0, 4), "simulated": round(sim_a0, 4)},
+        "d0": {"actual": round(real_d0, 4), "simulated": round(sim_d0, 4)},
         "by_hour_actual": actual_by_hour,
         "by_hour_sim": metrics.by_hour(),
     }
@@ -131,6 +141,14 @@ def print_report(result: dict) -> None:
         print(f"{'arr runway wait p95':<28} {'(sim only)':>10} {rw['arr']['p95']:>10.2f}")
         print(f"{'dep runway wait mean':<28} {'(sim only)':>10} {rw['dep']['mean']:>10.2f}")
         print(f"{'dep runway wait p95':<28} {'(sim only)':>10} {rw['dep']['p95']:>10.2f}")
+    print(f"{'-'*W}")
+    a0 = result.get("a0", {})
+    d0 = result.get("d0", {})
+    if a0:
+        a0_act, a0_sim = a0["actual"], a0["simulated"]
+        d0_act, d0_sim = d0["actual"], d0["simulated"]
+        print(f"{'A0 rate (gate arr on time)':<28} {a0_act:>10.1%} {a0_sim:>10.1%} {a0_sim - a0_act:>+8.1%}")
+        print(f"{'D0 rate (gate dep on time)':<28} {d0_act:>10.1%} {d0_sim:>10.1%} {d0_sim - d0_act:>+8.1%}")
 
     # ── Time-of-day breakdown ────────────────────────────────────────────
     print(f"\n{'--- Time-of-Day Breakdown':^{W}}")

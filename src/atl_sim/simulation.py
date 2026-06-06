@@ -160,7 +160,12 @@ class AirportSimulation:
         cfg = self.config
         conc = cfg.concourses.get(flight.concourse)
 
-        yield self.env.timeout(max(0.0, flight.scheduled_min - self.env.now))
+        # Back-calculate a randomised wheels-on time from the scheduled gate arrival.
+        # This introduces realistic variance in actual landing time vs schedule so
+        # A0 (gate on-time arrival) is non-trivially distributed around 50%.
+        taxi_in_offset = self._taxi_in(conc)
+        wheels_on_trigger = max(0.0, flight.scheduled_min - taxi_in_offset)
+        yield self.env.timeout(max(0.0, wheels_on_trigger - self.env.now))
 
         # GDP arrival rate cap: add TRACON metering delay before runway request.
         program = self._active_program(self.env.now)
@@ -237,6 +242,7 @@ class AirportSimulation:
         with self.runway_pool.dep_taxi_permits.request() as permit:
             yield permit
             gate_hold_time = self.env.now - gate_hold_start
+            pushback_min = self.env.now  # actual gate pushback (permit acquired)
 
             taxi_out = self._taxi_out(conc)
             yield self.env.timeout(taxi_out)
@@ -268,6 +274,7 @@ class AirportSimulation:
             actual_min=actual_wheels_off,
             taxi_min=taxi_out + clearance_hold,   # clearance hold is part of taxi time
             gate_delay_min=gate_hold_time,
+            pushback_min=pushback_min,
             runway_wait_min=runway_wait,
             concourse=flight.concourse,
             weight_class=flight.weight_class,

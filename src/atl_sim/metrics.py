@@ -20,6 +20,7 @@ class FlightRecord:
     gate_delay_min: float = 0.0
     runway_wait_min: float = 0.0   # time queued waiting for runway slot
     gate_hold_min: float = 0.0     # DEP: time held at gate before taxiway entry
+    pushback_min: float | None = None   # DEP: actual gate pushback time
     concourse: str = ""
     weight_class: str = ""
 
@@ -74,6 +75,12 @@ class SimMetrics:
         arr_rwy_wait = [r.runway_wait_min for r in arrivals]
         dep_rwy_wait = [r.runway_wait_min for r in departures]
 
+        a0_count = sum(1 for r in arrivals if r.gate_in_min is not None and r.gate_in_min <= r.scheduled_min)
+        a0_rate = a0_count / len(arrivals) if arrivals else 0.0
+
+        d0_count = sum(1 for r in departures if r.pushback_min is not None and r.pushback_min <= r.scheduled_min)
+        d0_rate = d0_count / len(departures) if departures else 0.0
+
         return {
             "flights_simulated": len(self.records),
             "arrivals": len(arrivals),
@@ -82,6 +89,8 @@ class SimMetrics:
             "departure_delay": _stats(dep_delays),
             "arrival_runway_wait": _stats(arr_rwy_wait),
             "departure_runway_wait": _stats(dep_rwy_wait),
+            "a0_rate": round(a0_rate, 4),
+            "d0_rate": round(d0_rate, 4),
             "gate_utilisation": {
                 k: round(float(np.mean(v)), 3) for k, v in gate_util.items()
             },
