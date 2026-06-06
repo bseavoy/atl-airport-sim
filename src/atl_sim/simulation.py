@@ -277,7 +277,9 @@ class AirportSimulation:
                 )
                 yield self.env.timeout(clearance_hold)
 
+            meter_request_t = self.env.now
             yield self.env.process(self.runway_pool.departure_meter.request_slot())
+            meter_wait = self.env.now - meter_request_t
             rwy = self.runway_pool.least_loaded_runway()
             rwy_request_t = self.env.now
             yield self.env.process(rwy.process(aircraft_type=flight.aircraft_type))
@@ -289,7 +291,7 @@ class AirportSimulation:
             operation="DEP",
             scheduled_min=flight.scheduled_min,
             actual_min=actual_wheels_off,
-            taxi_min=taxi_out + clearance_hold,   # clearance hold is part of taxi time
+            taxi_min=taxi_out + clearance_hold + meter_wait,
             gate_delay_min=gate_hold_time,
             pushback_min=pushback_min,
             runway_wait_min=runway_wait,

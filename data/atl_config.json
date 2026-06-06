@@ -18,7 +18,7 @@
       "description": "Main Terminal",
       "taxi_in_mean_min": 10.5,
       "taxi_in_std_min": 4.5,
-      "taxi_out_mean_min": 20.0,
+      "taxi_out_mean_min": 16.5,
       "taxi_out_std_min": 8.5,
       "compatible_aircraft": ["narrow", "wide"]
     },
@@ -29,7 +29,7 @@
       "description": "Concourse A",
       "taxi_in_mean_min": 9.0,
       "taxi_in_std_min": 4.2,
-      "taxi_out_mean_min": 17.0,
+      "taxi_out_mean_min": 14.0,
       "taxi_out_std_min": 8.0,
       "compatible_aircraft": ["narrow", "wide"]
     },
@@ -40,7 +40,7 @@
       "description": "Concourse B",
       "taxi_in_mean_min": 9.5,
       "taxi_in_std_min": 4.5,
-      "taxi_out_mean_min": 17.5,
+      "taxi_out_mean_min": 14.5,
       "taxi_out_std_min": 8.5,
       "compatible_aircraft": ["narrow", "wide"]
     },
@@ -51,7 +51,7 @@
       "description": "Concourse C",
       "taxi_in_mean_min": 10.0,
       "taxi_in_std_min": 4.5,
-      "taxi_out_mean_min": 18.5,
+      "taxi_out_mean_min": 15.0,
       "taxi_out_std_min": 9.0,
       "compatible_aircraft": ["narrow", "wide"]
     },
@@ -62,7 +62,7 @@
       "description": "Concourse D",
       "taxi_in_mean_min": 10.5,
       "taxi_in_std_min": 4.5,
-      "taxi_out_mean_min": 19.0,
+      "taxi_out_mean_min": 15.5,
       "taxi_out_std_min": 9.0,
       "compatible_aircraft": ["narrow", "wide"]
     },
@@ -73,7 +73,7 @@
       "description": "Concourse E",
       "taxi_in_mean_min": 11.0,
       "taxi_in_std_min": 5.0,
-      "taxi_out_mean_min": 20.0,
+      "taxi_out_mean_min": 16.5,
       "taxi_out_std_min": 9.5,
       "compatible_aircraft": ["narrow", "wide"]
     },
@@ -84,7 +84,7 @@
       "description": "Concourse F - International",
       "taxi_in_mean_min": 12.0,
       "taxi_in_std_min": 5.5,
-      "taxi_out_mean_min": 22.0,
+      "taxi_out_mean_min": 18.0,
       "taxi_out_std_min": 10.0,
       "compatible_aircraft": ["narrow", "wide", "heavy"]
     }
@@ -115,12 +115,12 @@
     "taxi_out_std_min": 8.7
   },
   "hourly_taxi_out_scale": {
-    "0": 0.87, "1": 0.87, "2": 0.87, "3": 0.87, "4": 0.87, "5": 0.87,
-    "6": 0.92,
-    "23": 0.92
+    "0": 0.93, "1": 0.93, "2": 0.93, "3": 0.93, "4": 0.93, "5": 0.93,
+    "6": 0.96,
+    "23": 0.96
   },
   "departure_max_taxi_queue": 37,
-  "taxi_out_congestion_alpha": 0.16,
+  "taxi_out_congestion_alpha": 0.20,
   "congestion_departure_queue_threshold": 15,
   "gate_hold_poll_min": 1.0,
   "airline_padding_overrides": {
