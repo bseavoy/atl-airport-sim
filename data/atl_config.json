@@ -115,7 +115,7 @@
     "taxi_out_std_min": 8.7
   },
   "departure_max_taxi_queue": 37,
-  "taxi_out_congestion_alpha": 0.30,
+  "taxi_out_congestion_alpha": 0.16,
   "congestion_departure_queue_threshold": 15,
   "gate_hold_poll_min": 1.0,
   "airline_padding_overrides": {

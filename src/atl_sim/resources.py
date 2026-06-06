@@ -192,8 +192,9 @@ class RunwayPool:
         self.departure_meter = DepartureMeter(env, config.nominal_departure_rate_per_hour)
 
         num_dep = max(1, len(dep))
+        _avg_roll_min = 0.75
         min_inter_dep_min = (
-            60.0 * num_dep / config.nominal_departure_rate_per_hour
+            max(0.0, 60.0 * num_dep / config.nominal_departure_rate_per_hour - _avg_roll_min)
             if config.nominal_departure_rate_per_hour > 0
             else 0.0
         )
