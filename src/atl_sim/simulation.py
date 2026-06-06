@@ -161,10 +161,16 @@ class AirportSimulation:
         conc = cfg.concourses.get(flight.concourse)
 
         # Back-calculate a randomised wheels-on time from the scheduled gate arrival.
-        # This introduces realistic variance in actual landing time vs schedule so
-        # A0 (gate on-time arrival) is non-trivially distributed around 50%.
+        # taxi_in_offset: expected taxi time (same distribution as actual taxi-in)
+        # padding: per-flight sample of airline schedule buffer above expected taxi
+        # Together they model that scheduled gate arrival = wheels_on + taxi + buffer,
+        # so wheels_on = scheduled_gate - taxi_offset - padding_sample.
         taxi_in_offset = self._taxi_in(conc)
-        wheels_on_trigger = max(0.0, flight.scheduled_min - taxi_in_offset)
+        padding = max(0.0, self.rng_py.gauss(
+            cfg.arr_schedule_padding_mean_min,
+            cfg.arr_schedule_padding_std_min,
+        )) if cfg.arr_schedule_padding_mean_min > 0 else 0.0
+        wheels_on_trigger = max(0.0, flight.scheduled_min - taxi_in_offset - padding)
         yield self.env.timeout(max(0.0, wheels_on_trigger - self.env.now))
 
         # GDP arrival rate cap: add TRACON metering delay before runway request.

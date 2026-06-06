@@ -113,6 +113,11 @@ class AirportConfig:
     taxi_in_lognorm_sigma: float = 0.434
     taxi_out_lognorm_sigma: float = 0.356
     departure_max_taxi_queue: int = 25
+    # Schedule padding: airlines publish gate arrival times later than expected
+    # actual arrival, creating a buffer.  Sampled per-flight from a half-normal
+    # (clamped at 0) and subtracted from the wheels-on trigger.
+    arr_schedule_padding_mean_min: float = 0.0
+    arr_schedule_padding_std_min: float = 0.0
 
 
 def load_config(config_path: Optional[str] = None) -> AirportConfig:
@@ -191,4 +196,6 @@ def load_config(config_path: Optional[str] = None) -> AirportConfig:
         taxi_in_lognorm_sigma=float(taxi_dist.get("taxi_in_lognorm_sigma", 0.434)),
         taxi_out_lognorm_sigma=float(taxi_dist.get("taxi_out_lognorm_sigma", 0.356)),
         departure_max_taxi_queue=int(raw.get("departure_max_taxi_queue", 25)),
+        arr_schedule_padding_mean_min=float(raw.get("arr_schedule_padding_mean_min", 0.0)),
+        arr_schedule_padding_std_min=float(raw.get("arr_schedule_padding_std_min", 0.0)),
     )
