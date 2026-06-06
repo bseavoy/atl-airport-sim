@@ -182,6 +182,8 @@ class AirportSimulation:
                     max(0.0, float(self.rng.exponential(overhead)))
                 )
 
+        yield self.env.process(self.runway_pool.arrival_meter.request_slot())
+
         rwy_request_t = self.env.now
         with self.runway_pool.arrival.request() as req:
             yield req
@@ -267,6 +269,7 @@ class AirportSimulation:
                 )
                 yield self.env.timeout(clearance_hold)
 
+            yield self.env.process(self.runway_pool.departure_meter.request_slot())
             rwy = self.runway_pool.least_loaded_runway()
             rwy_request_t = self.env.now
             yield self.env.process(rwy.process(is_heavy=flight.is_heavy))

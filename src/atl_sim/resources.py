@@ -39,6 +39,60 @@ class Flight:
         return self.weight_class in ("Heavy", "Super")
 
 
+class ArrivalMeter:
+    """
+    Token-bucket rate limiter enforcing the FAA nominal arrival acceptance rate.
+
+    Arrivals request a slot before competing for the runway resource.  The
+    meter releases one slot every (60 / rate_per_hour) minutes, so the total
+    landing rate cannot exceed the FAA-rated throughput even on a fully-loaded
+    schedule.  When arrivals arrive faster than the rate, they queue here and
+    the delay adds to their runway-wait time.
+    """
+
+    def __init__(self, env: simpy.Environment, rate_per_hour: float):
+        self.env = env
+        self._interval_min = 60.0 / max(1.0, rate_per_hour)
+        self._mutex = simpy.Resource(env, capacity=1)
+        self._next_slot_min: float = 0.0
+
+    def request_slot(self):
+        """SimPy process: wait until a metered arrival slot is available."""
+        with self._mutex.request() as req:
+            yield req
+            wait = max(0.0, self._next_slot_min - self.env.now)
+            if wait > 0.0:
+                yield self.env.timeout(wait)
+            self._next_slot_min = self.env.now + self._interval_min
+
+
+class DepartureMeter:
+    """
+    Token-bucket rate limiter enforcing the FAA nominal departure rate.
+
+    Departures request a slot before competing for a runway.  The meter
+    releases one slot every (60 / rate_per_hour) minutes, capping total
+    departure throughput at the FAA-rated runway capacity.  When more
+    departures are ready than the runway system can accept, they queue here
+    and the delay accumulates in their runway-wait time.
+    """
+
+    def __init__(self, env: simpy.Environment, rate_per_hour: float):
+        self.env = env
+        self._interval_min = 60.0 / max(1.0, rate_per_hour)
+        self._mutex = simpy.Resource(env, capacity=1)
+        self._next_slot_min: float = 0.0
+
+    def request_slot(self):
+        """SimPy process: wait until a metered departure slot is available."""
+        with self._mutex.request() as req:
+            yield req
+            wait = max(0.0, self._next_slot_min - self.env.now)
+            if wait > 0.0:
+                yield self.env.timeout(wait)
+            self._next_slot_min = self.env.now + self._interval_min
+
+
 class DepartureRunway:
     """One physical departure runway with its own queue and separation state."""
 
@@ -49,6 +103,7 @@ class DepartureRunway:
         default_sep_sec: int = 60,
         heavy_sep_sec: int = 90,
         takeoff_roll_min: float = 0.75,
+        min_inter_dep_min: float = 0.0,
     ):
         self.env = env
         self.runway_id = runway_id
@@ -56,18 +111,18 @@ class DepartureRunway:
         self.default_sep_sec = default_sep_sec
         self.heavy_sep_sec = heavy_sep_sec
         self.takeoff_roll_min = takeoff_roll_min
+        self.min_inter_dep_min = min_inter_dep_min
         self._last_was_heavy = False
 
     @property
     def queue_depth(self) -> int:
-        """Aircraft waiting + currently using this runway."""
         return len(self.resource.queue) + self.resource.count
 
     def process(self, is_heavy: bool):
-        """SimPy process: acquire runway, enforce separation, take off."""
         sep_min = (
             self.heavy_sep_sec if self._last_was_heavy else self.default_sep_sec
         ) / 60.0
+        sep_min = max(sep_min, self.min_inter_dep_min)
         with self.resource.request() as req:
             yield req
             yield self.env.timeout(sep_min + self.takeoff_roll_min)
@@ -93,6 +148,15 @@ class RunwayPool:
 
         self.arrival = simpy.Resource(env, capacity=max(1, len(arr)))
         self.arrival_names = arr
+        self.arrival_meter = ArrivalMeter(env, config.nominal_arrival_rate_per_hour)
+        self.departure_meter = DepartureMeter(env, config.nominal_departure_rate_per_hour)
+
+        num_dep = max(1, len(dep))
+        min_inter_dep_min = (
+            60.0 * num_dep / config.nominal_departure_rate_per_hour
+            if config.nominal_departure_rate_per_hour > 0
+            else 0.0
+        )
 
         sep = config.separation
         self.dep_runways: List[DepartureRunway] = [
@@ -101,6 +165,7 @@ class RunwayPool:
                 runway_id=name,
                 default_sep_sec=sep.default_separation_sec,
                 heavy_sep_sec=sep.heavy_behind_heavy_sec,
+                min_inter_dep_min=min_inter_dep_min,
             )
             for name in dep
         ]
