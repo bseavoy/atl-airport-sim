@@ -141,7 +141,9 @@ class AirportSimulation:
     def _taxi_out(self, conc, queue_depth: int = 0) -> float:
         cfg = self.config
         base_mean = conc.taxi_out_mean_min if conc else 18.0
-        mean = base_mean + cfg.taxi_out_congestion_alpha * queue_depth
+        hour = int(self.env.now / 60) % 24
+        scale = cfg.hourly_taxi_out_scale.get(hour, 1.0)
+        mean = base_mean * scale + cfg.taxi_out_congestion_alpha * queue_depth
         if cfg.use_lognormal:
             return max(1.0, _lognorm_sample(self.rng, mean, cfg.taxi_out_lognorm_sigma))
         std = conc.taxi_out_std_min if conc else 5.0

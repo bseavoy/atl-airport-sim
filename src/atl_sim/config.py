@@ -122,6 +122,10 @@ class AirportConfig:
     # Smart gate hold: hold at gate while dep queue >= threshold (Simaiakis 2012)
     congestion_departure_queue_threshold: int = 15
     gate_hold_poll_min: float = 1.0
+    # Per-hour multiplier on concourse taxi_out_mean_min before congestion term.
+    # Derived from FAA ASPM unimpeded taxi-out ratio (off-peak vs peak baseline).
+    # Missing hours default to 1.0 (no scaling).
+    hourly_taxi_out_scale: Dict[int, float] = field(default_factory=dict)
 
 
 def load_config(config_path: Optional[str] = None) -> AirportConfig:
@@ -209,4 +213,8 @@ def load_config(config_path: Optional[str] = None) -> AirportConfig:
         taxi_out_congestion_alpha=float(raw.get("taxi_out_congestion_alpha", 0.3)),
         congestion_departure_queue_threshold=int(raw.get("congestion_departure_queue_threshold", 15)),
         gate_hold_poll_min=float(raw.get("gate_hold_poll_min", 1.0)),
+        hourly_taxi_out_scale={
+            int(k): float(v)
+            for k, v in raw.get("hourly_taxi_out_scale", {}).items()
+        },
     )
