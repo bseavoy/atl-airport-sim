@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
@@ -41,6 +41,54 @@ class SeparationMinima:
     small_behind_heavy_sec: int = 180
     small_behind_large_sec: int = 90
     default_separation_sec: int = 60
+
+
+@dataclass
+class GroundProgram:
+    """
+    Configures a ground delay program (GDP) or ground stop (GS) for a
+    specific time window.  Effects are applied dynamically during simulation
+    based on env.now at the point each aircraft reaches the runway threshold.
+
+    Departure clearance hold: aircraft that complete taxi-out and reach the
+    runway threshold during this window receive an additional ATC hold before
+    getting take-off clearance.  This represents "taxi and hold" / EDCT
+    compliance delays that inflate taxi-out times during GDP events.
+
+    Arrival rate cap: limits how quickly the arrival runway resource accepts
+    new aircraft, representing TRACON metering and reduced acceptance rate.
+    """
+    type: str                         # "GDP" or "GS"
+    description: str
+    start_min: float                  # Minutes from midnight (local)
+    end_min: float
+
+    # Clearance hold added to each departure AT THE RUNWAY THRESHOLD
+    dep_clearance_hold_mean_min: float = 0.0
+    dep_clearance_hold_std_min: float = 0.0
+    dep_clearance_hold_max_min: float = 120.0
+
+    # Arrival acceptance rate cap (per hour); 0 = no cap
+    arr_rate_per_hour: float = 0.0
+
+
+def load_ground_programs(path: str) -> List[GroundProgram]:
+    """Load a list of GroundProgram definitions from a JSON file."""
+    with open(path, "r") as fh:
+        raw = json.load(fh)
+    programs = []
+    for p in raw.get("programs", []):
+        programs.append(GroundProgram(
+            type=p.get("type", "GDP"),
+            description=p.get("description", ""),
+            start_min=float(p["start_min"]),
+            end_min=float(p["end_min"]),
+            dep_clearance_hold_mean_min=float(p.get("dep_clearance_hold_mean_min", 0.0)),
+            dep_clearance_hold_std_min=float(p.get("dep_clearance_hold_std_min", 0.0)),
+            dep_clearance_hold_max_min=float(p.get("dep_clearance_hold_max_min", 120.0)),
+            arr_rate_per_hour=float(p.get("arr_rate_per_hour", 0.0)),
+        ))
+    return programs
 
 
 @dataclass

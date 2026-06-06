@@ -1,0 +1,35 @@
+{
+  "_comment": "ATL 2024-08-16 evening convective ground stop. 21:xx peak mean 57.7 min (p50=42, p95=100 — highly skewed distribution). Clearance hold reaches runway threshold ~25 min after scheduled departure at ATL. Increased std for GS phase to capture the long right tail; recovery phase raised to match 22:xx actuals (33 min).",
+  "programs": [
+    {
+      "type": "GS",
+      "description": "Pre-stop buildup — departure rate reducing as storms approach",
+      "start_min": 1245,
+      "end_min": 1290,
+      "dep_clearance_hold_mean_min": 15,
+      "dep_clearance_hold_std_min": 10,
+      "dep_clearance_hold_max_min": 40,
+      "arr_rate_per_hour": 55
+    },
+    {
+      "type": "GS",
+      "description": "Full ground stop — active convective weather, runway operations suspended/restricted",
+      "start_min": 1290,
+      "end_min": 1370,
+      "dep_clearance_hold_mean_min": 52,
+      "dep_clearance_hold_std_min": 30,
+      "dep_clearance_hold_max_min": 120,
+      "arr_rate_per_hour": 35
+    },
+    {
+      "type": "GDP",
+      "description": "Post-stop recovery — backlog still present as operations resume",
+      "start_min": 1370,
+      "end_min": 1440,
+      "dep_clearance_hold_mean_min": 28,
+      "dep_clearance_hold_std_min": 15,
+      "dep_clearance_hold_max_min": 65,
+      "arr_rate_per_hour": 60
+    }
+  ]
+}

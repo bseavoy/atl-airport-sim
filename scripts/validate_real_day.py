@@ -12,12 +12,14 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.atl_sim import AirportSimulation, load_config
+from src.atl_sim.config import load_ground_programs
 
 MANIFEST = Path("data/real_days/manifest.json")
 CONFIG_PATH = Path("data/atl_config.json")
@@ -39,9 +41,10 @@ def _stats(vals):
     }
 
 
-def run_day(csv_path: Path, seed: int = 42) -> dict:
+def run_day(csv_path: Path, seed: int = 42, gdp_path: Optional[Path] = None) -> dict:
     config = load_config(str(CONFIG_PATH))
-    sim = AirportSimulation(config=config, seed=seed)
+    programs = load_ground_programs(str(gdp_path)) if gdp_path else []
+    sim = AirportSimulation(config=config, seed=seed, ground_programs=programs)
     sim.load_schedule(str(csv_path))
     metrics = sim.run(until_min=1500.0)
 
@@ -183,8 +186,12 @@ def main():
     p.add_argument("csv", nargs="?", help="Path to a real-day CSV file")
     p.add_argument("--all", action="store_true", help="Run all days in manifest")
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--gdp", metavar="FILE",
+                   help="Ground programs JSON (e.g. data/ground_programs/2024-08-16_atl.json)")
     p.add_argument("--output", help="Write JSON results to this path")
     args = p.parse_args()
+
+    gdp_path = Path(args.gdp) if args.gdp else None
 
     if args.all:
         if not MANIFEST.exists():
@@ -198,13 +205,16 @@ def main():
         p.print_help()
         return
 
+    if gdp_path:
+        print(f"Ground programs: {gdp_path}")
+
     results = []
     for path in paths:
         if not path.exists():
             print(f"Missing: {path}")
             continue
         print(f"Running sim for {path.name}...")
-        result = run_day(path, seed=args.seed)
+        result = run_day(path, seed=args.seed, gdp_path=gdp_path)
         print_report(result)
         results.append(result)
 

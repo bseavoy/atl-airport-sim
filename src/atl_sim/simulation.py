@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import simpy
 
-from .config import AirportConfig, load_config
+from .config import AirportConfig, GroundProgram, load_config
 from .metrics import FlightRecord, SimMetrics
 from .resources import Flight, GatePool, RunwayPool
 from .schedule import load_schedule
@@ -32,6 +32,7 @@ class AirportSimulation:
         config: Optional[AirportConfig] = None,
         config_path: Optional[str] = None,
         seed: int = 42,
+        ground_programs: Optional[List[GroundProgram]] = None,
     ):
         self.config = config or load_config(config_path)
         self.rng_py = random.Random(seed)
@@ -41,6 +42,7 @@ class AirportSimulation:
         self.gate_pool = GatePool(self.env, self.config)
         self.metrics = SimMetrics()
         self._flights: List[Flight] = []
+        self.ground_programs: List[GroundProgram] = ground_programs or []
         # Maps departure flight_id → SimPy Event that succeeds when its
         # inbound rotation (same tail) finishes gate turnaround.
         self._rotation_events: Dict[str, simpy.Event] = {}
@@ -103,6 +105,26 @@ class AirportSimulation:
                     i += 1
 
     # ------------------------------------------------------------------ #
+    # Ground program helpers
+    # ------------------------------------------------------------------ #
+
+    def _active_program(self, sim_min: float) -> Optional[GroundProgram]:
+        """Return the first ground program active at sim_min, or None."""
+        for p in self.ground_programs:
+            if p.start_min <= sim_min < p.end_min:
+                return p
+        return None
+
+    def _arr_spacing_overhead(self, program: GroundProgram) -> float:
+        """Extra inter-arrival spacing (min) needed to hit the GDP rate cap."""
+        if program.arr_rate_per_hour <= 0:
+            return 0.0
+        nominal = self.config.nominal_arrival_rate_per_hour
+        gap_normal = 60.0 / nominal
+        gap_gdp = 60.0 / program.arr_rate_per_hour
+        return max(0.0, gap_gdp - gap_normal)
+
+    # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
 
@@ -139,6 +161,15 @@ class AirportSimulation:
         conc = cfg.concourses.get(flight.concourse)
 
         yield self.env.timeout(max(0.0, flight.scheduled_min - self.env.now))
+
+        # GDP arrival rate cap: add TRACON metering delay before runway request.
+        program = self._active_program(self.env.now)
+        if program is not None:
+            overhead = self._arr_spacing_overhead(program)
+            if overhead > 0.0:
+                yield self.env.timeout(
+                    max(0.0, float(self.rng.exponential(overhead)))
+                )
 
         rwy_request_t = self.env.now
         with self.runway_pool.arrival.request() as req:
@@ -210,6 +241,20 @@ class AirportSimulation:
             taxi_out = self._taxi_out(conc)
             yield self.env.timeout(taxi_out)
 
+            # GDP departure clearance hold: aircraft reaches runway threshold
+            # but ATC holds it for traffic management / weather.
+            clearance_hold = 0.0
+            program = self._active_program(self.env.now)
+            if program is not None and program.dep_clearance_hold_mean_min > 0:
+                clearance_hold = min(
+                    program.dep_clearance_hold_max_min,
+                    max(0.0, self.rng_py.gauss(
+                        program.dep_clearance_hold_mean_min,
+                        program.dep_clearance_hold_std_min,
+                    )),
+                )
+                yield self.env.timeout(clearance_hold)
+
             rwy = self.runway_pool.least_loaded_runway()
             rwy_request_t = self.env.now
             yield self.env.process(rwy.process(is_heavy=flight.is_heavy))
@@ -221,7 +266,7 @@ class AirportSimulation:
             operation="DEP",
             scheduled_min=flight.scheduled_min,
             actual_min=actual_wheels_off,
-            taxi_min=taxi_out,
+            taxi_min=taxi_out + clearance_hold,   # clearance hold is part of taxi time
             gate_delay_min=gate_hold_time,
             runway_wait_min=runway_wait,
             concourse=flight.concourse,
