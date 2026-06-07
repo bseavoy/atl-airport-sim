@@ -240,7 +240,10 @@ class AirportSimulation:
             0.0,
             self.rng_py.gauss(cfg.gate_holdout_mean_min, cfg.gate_holdout_std_min),
         )
-        pushback_ready = max(self.env.now, flight.scheduled_min - gate_holdout)
+        dep_pad_mean = cfg.dep_schedule_padding_mean_min
+        dep_pad_std = cfg.dep_schedule_padding_std_min
+        dep_pad = max(0.0, self.rng_py.gauss(dep_pad_mean, dep_pad_std)) if dep_pad_mean > 0 else 0.0
+        pushback_ready = max(self.env.now, flight.scheduled_min - gate_holdout - dep_pad)
         yield self.env.timeout(max(0.0, pushback_ready - self.env.now))
 
         pushback_delay = max(

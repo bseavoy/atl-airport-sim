@@ -2,7 +2,7 @@
 
 ## Approach 1 — GDP/Ground-Stop Injection from FAA Public Data
 
-**Problem:** On high-variance days (e.g. Aug 16), actual taxi-out p95 reaches 52 min while the sim produces ~31 min. Afternoon weather events cause departure queue saturation that the baseline model doesn't capture.
+**Problem:** On disrupted days (Jul 16, Aug 1, Aug 16, Dec 2, Feb 17, Mar 17, Apr 1), actual D0 drops to 39–56% while the sim produces 71–77%. Actual taxi-out p95 on Aug 16 reaches 52 min while the sim produces ~31 min. GDP/weather events cause queue saturation and clearance holds the baseline model doesn't capture.
 
 **The mechanism already exists:** `GroundProgram` dataclass and `--gdp` flag on `validate_real_day.py` are fully wired. The only missing piece is a data feed.
 

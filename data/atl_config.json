@@ -140,5 +140,7 @@
   "turnaround_narrow_min": 45,
   "turnaround_wide_min": 60,
   "arr_schedule_padding_mean_min": 6.4,
-  "arr_schedule_padding_std_min": 3.0
+  "arr_schedule_padding_std_min": 3.0,
+  "dep_schedule_padding_mean_min": 3.5,
+  "dep_schedule_padding_std_min": 2.0
 }

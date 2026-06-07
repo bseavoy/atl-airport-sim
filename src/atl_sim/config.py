@@ -115,6 +115,8 @@ class AirportConfig:
     departure_max_taxi_queue: int = 25
     arr_schedule_padding_mean_min: float = 0.0
     arr_schedule_padding_std_min: float = 0.0
+    dep_schedule_padding_mean_min: float = 0.0
+    dep_schedule_padding_std_min: float = 0.0
     # Per-airline schedule padding overrides: {iata_code: (mean_min, std_min)}
     airline_padding_overrides: Dict[str, Tuple[float, float]] = field(default_factory=dict)
     # Congestion-adjusted taxi-out: mean += alpha * queue_depth_at_pushback
@@ -206,6 +208,8 @@ def load_config(config_path: Optional[str] = None) -> AirportConfig:
         departure_max_taxi_queue=int(raw.get("departure_max_taxi_queue", 25)),
         arr_schedule_padding_mean_min=float(raw.get("arr_schedule_padding_mean_min", 0.0)),
         arr_schedule_padding_std_min=float(raw.get("arr_schedule_padding_std_min", 0.0)),
+        dep_schedule_padding_mean_min=float(raw.get("dep_schedule_padding_mean_min", 0.0)),
+        dep_schedule_padding_std_min=float(raw.get("dep_schedule_padding_std_min", 0.0)),
         airline_padding_overrides={
             k: (float(v[0]), float(v[1]))
             for k, v in raw.get("airline_padding_overrides", {}).items()
